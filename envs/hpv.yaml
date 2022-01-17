@@ -1,0 +1,16 @@
+channels:
+        - r
+        - bioconda
+        - conda-forge
+        - defaults
+dependencies:
+        - bowtie2=2.3.4.3
+        - cutadapt=1.17
+        - ea-utils=1.1.2.537
+        - hisat2=2.1.0 
+        - samtools=1.8
+        - bedtools=2.27.1
+        - pysam=0.11.2.2
+        - seqtk=1.3
+        - last=876
+

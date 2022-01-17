@@ -1,0 +1,71 @@
+#to use workflow run
+# $ source activate python3env
+
+__author__="sium"
+__email__="sinan.ugur.umu@kreftregisteret.no"
+
+
+#required params: identifier
+# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+
+
+import glob
+from collections import defaultdict
+directories, files, = glob_wildcards("analyses/hisat2_bam_files/{group}/{sample}-F.hisat2.hg38-HPV183.sorted.bam")
+#glob_wildcards("WGS/tests/fastq/{group}/{sample}.fastq.gzadr_R1.fastq")
+
+identifier=config.get("identifier","hg38-HPV183") #if it is empty, use the default
+
+#which reference to use
+reference_base="/WORKING/databases/HPV/HPV_hg38/"
+command_base="scripts/"
+directory_base="analyses/"
+
+if identifier.find("shift") >= 0 :
+	reference=reference_base + "hg38_HPV183refseq_shifted"
+elif identifier.find("added") >= 0 :
+	reference=reference_base + "hg38_HPV183refseq_added"
+else:
+	reference=reference_base + "hg38_HPV183refseq"
+
+
+rule all:
+	input:
+		expand("analyses/variant_calling/{group}/{sample}.vcf.gz",zip,group=directories, sample = files)
+
+
+
+rule merge_bams:
+	input:
+		["analyses/hisat2_bam_files/{{group}}/{{sample}}-{x}.hisat2.{i}.sorted.bam".format(i=identifier,x=x) for x in ["F","R"]]
+
+	output:
+		"analyses/hisat2_merged_bam_files/{group}/{sample}." + identifier + ".bam",
+		"analyses/hisat2_merged_bam_files/{group}/{sample}." + identifier + ".bam.bai"
+	
+	threads: 15
+		
+	shell:
+		"""
+		samtools merge -l 9 --threads {threads} {output[0]} {input};
+		samtools index {output[0]};
+		"""
+
+
+rule variant_call:
+	input:
+		"analyses/hisat2_merged_bam_files/{group}/{sample}." + identifier + ".bam",
+		"analyses/hisat2_merged_bam_files/{group}/{sample}." + identifier + ".bam.bai"
+	output:
+		 "analyses/variant_calling/{group}/{sample}.vcf.gz"
+	params:
+		genome=reference
+	shell:
+		"""
+		chr=$(scripts/python/rnaseq_tool.py {input[0]} | grep HPV | sort -k2nr | awk 'NR==1{{print $1}}'); #detect the HPV chromosome
+
+		bcftools mpileup -Ou --max-depth 500000 -f {params.genome}.fasta -r "$chr" {input[0]} | bcftools call --ploidy 1 --variants-only -c -Oz -o {output}; #variant call HPV chromosome
+
+		"""
+
+

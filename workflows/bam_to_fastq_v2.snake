@@ -1,0 +1,63 @@
+#to use workflow run
+# $ source activate python3env
+
+__author__="sium"
+__email__="sinan.ugur.umu@kreftregisteret.no"
+
+
+#required params: identifier
+# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+
+
+import glob
+from collections import defaultdict
+#directories, files, = glob_wildcards("analyses/hisat2_bam_files/{group}/{sample}.hisat2.hg38-HPV183.sorted.bam")
+#directories, files, = glob_wildcards("data/raw/{group}/{sample}_L001_R1_001.fastq.gz")
+#Pascal_HPV-WGS
+files, = glob_wildcards("data/raw/Pascal_NGS/{sample}_L001_R1_001.fastq.gz")
+
+#glob_wildcards("WGS/tests/fastq/{group}/{sample}.fastq.gzadr_R1.fastq")
+#
+#
+
+
+rule all:
+	input:
+		expand("analyses/bam_to_fastq/{group}/{sample}_L001_R1_001.fastq.gz",group="Pascal_NGS", sample = files),
+		expand("analyses/bam_to_fastq/{group}/{sample}_L001_R2_001.fastq.gz",group="Pascal_NGS", sample = files)
+
+
+rule pull_out_hpv:
+	input:
+		"analyses/hisat2_bam_files/{group}/{sample}.hisat2.hg38-HPV183.sorted.bam"
+	output:
+		temp("analyses/bam_to_fastq/{group}/{sample}.hpv.txt")
+	run:
+		shell("""samtools view {input} | awk '$7 == "=" && /HPV/{{print}}' | cut -f1 | uniq | sort | uniq > {output}""")
+
+rule pull_out_from_fastq_r1:
+	input:
+		"data/raw/{group}/{sample}_L001_R1_001.fastq.gz",
+		"analyses/bam_to_fastq/{group}/{sample}.hpv.txt"
+	output:
+		"analyses/bam_to_fastq/{group}/{sample}_L001_R1_001.fastq.gz"
+	run:
+		shell("""extract_from_FASTA.py --fasta {input[0]} --text {input[1]} | gzip > {output}""")
+
+
+rule pull_out_from_fastq_r2:
+        input:
+                "data/raw/{group}/{sample}_L001_R2_001.fastq.gz",
+                "analyses/bam_to_fastq/{group}/{sample}.hpv.txt"
+        output:
+                "analyses/bam_to_fastq/{group}/{sample}_L001_R2_001.fastq.gz"
+        run:
+                shell("""extract_from_FASTA.py --fasta {input[0]} --text {input[1]} | gzip > {output}""")
+
+
+
+
+
+
+
+

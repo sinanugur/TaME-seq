@@ -1,0 +1,78 @@
+#to use workflow run
+# $ source activate python3env
+
+__author__="sium"
+__email__="sinan.ugur.umu@kreftregisteret.no"
+
+
+#required params: identifier
+# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+
+
+import glob
+from collections import defaultdict
+directories, files, = glob_wildcards("analyses/hisat2_bam_files/{group}/{sample}.hisat2.hg38-HPV183.sorted.bam")
+
+#files, = glob_wildcards("analyses/hisat2_bam_files/Pascal_NGS/{sample}.hisat2.hg38-HPV183.sorted.bam")
+
+#glob_wildcards("WGS/tests/fastq/{group}/{sample}.fastq.gzadr_R1.fastq")
+#
+#
+
+
+rule all:
+	input:
+		expand("analyses/bam_to_fastq/{group}/{sample}_L001_R1_001.fastq.gz",zip,group=directories, sample = files)
+
+
+rule pull_out_hpv:
+	input:
+		"analyses/hisat2_bam_files/{group}/{sample}.hisat2.hg38-HPV183.sorted.bam"
+	output:
+		temp("analyses/bam_to_fastq/{group}/{sample}.hisat2.hg38-HPV183.sorted.bam")
+	threads: 2 
+	run:
+		shell("""samtools view -h {input} | awk '{{ if (($7 == "=" && /HPV/) || /^@/) print}}' | samtools view -b | samtools sort -n > {output}""")
+
+
+rule bam_to_fastq:
+	input:
+		"analyses/bam_to_fastq/{group}/{sample}.hisat2.hg38-HPV183.sorted.bam"
+	output:
+		temp("analyses/bam_to_fastq/{group}/{sample}_L001_R1_001.fastq"),
+		temp("analyses/bam_to_fastq/{group}/{sample}_L001_R2_001.fastq")
+	run:
+		shell("bamToFastq -i {input} -fq {output[0]} -fq2 {output[1]}")
+
+rule gzip_fastq:
+	input:
+		"analyses/bam_to_fastq/{group}/{sample}_L001_R1_001.fastq",
+		"analyses/bam_to_fastq/{group}/{sample}_L001_R2_001.fastq"
+	output:
+		"analyses/bam_to_fastq/{group}/{sample}_L001_R1_001.fastq.gz",
+		"analyses/bam_to_fastq/{group}/{sample}_L001_R2_001.fastq.gz"
+	run:
+		shell("gzip {input[0]}")
+		shell("gzip {input[1]}")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	
+
+
+
+
+		
+
+
